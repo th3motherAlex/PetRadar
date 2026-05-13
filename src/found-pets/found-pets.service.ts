@@ -5,8 +5,10 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { RedisCacheService } from '../cache/redis-cache.service';
 import { createPoint, getCoordinates } from '../common/utils/geo.util';
 import { MailService } from '../mail/mail.service';
+import { trackEvent, trackException } from '../telemetry/application-insights';
 import { CreateFoundPetDto } from './dto/create-found-pet.dto';
 import { FoundPet } from './entities/found-pet.entity';
 
@@ -36,12 +38,35 @@ type LostPetMatch = {
 export class FoundPetsService {
   private readonly logger = new Logger(FoundPetsService.name);
   private readonly matchRadiusInMeters = 500;
+  private readonly foundPetsCacheKey = 'found-pets:all';
 
   constructor(
     @InjectRepository(FoundPet)
     private readonly foundPetsRepository: Repository<FoundPet>,
     private readonly mailService: MailService,
+    private readonly redisCacheService: RedisCacheService,
   ) {}
+
+  async findAll() {
+    const cachedFoundPets = await this.redisCacheService.get(
+      this.foundPetsCacheKey,
+    );
+
+    if (cachedFoundPets) {
+      trackEvent('found_pets_cache_hit');
+      return cachedFoundPets;
+    }
+
+    const foundPets = await this.foundPetsRepository.find({
+      order: { created_at: 'DESC' },
+    });
+    const response = foundPets.map((foundPet) => this.toResponse(foundPet));
+
+    await this.redisCacheService.set(this.foundPetsCacheKey, response);
+    trackEvent('found_pets_cache_miss', { count: String(response.length) });
+
+    return response;
+  }
 
   async create(createFoundPetDto: CreateFoundPetDto) {
     try {
@@ -64,6 +89,8 @@ export class FoundPetsService {
       });
 
       const savedFoundPet = await this.foundPetsRepository.save(foundPet);
+      await this.redisCacheService.del(this.foundPetsCacheKey);
+
       const matchedLostPets = await this.findNearbyLostPets(
         createFoundPetDto.longitude,
         createFoundPetDto.latitude,
@@ -89,13 +116,20 @@ export class FoundPetsService {
         );
       }
 
+      trackEvent('found_pet_created', {
+        id: String(savedFoundPet.id),
+        matches_found: String(matchedLostPets.length),
+      });
+
       return {
         found_pet: this.toResponse(savedFoundPet),
         matches_found: matchedLostPets.length,
+        matched_lost_pets: matchedLostPets,
         notifications_sent: notificationsSent,
         notifications_failed: notificationsFailed,
       };
     } catch (error) {
+      trackException(error);
       this.logger.error(
         'Unable to create found pet record',
         error instanceof Error ? error.stack : undefined,

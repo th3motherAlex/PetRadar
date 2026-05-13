@@ -6,6 +6,8 @@ const requiredVariables = [
   'DB_USERNAME',
   'DB_PASSWORD',
   'DB_NAME',
+  'REDIS_HOST',
+  'REDIS_PORT',
   'SMTP_HOST',
   'SMTP_PORT',
   'SMTP_SECURE',
@@ -24,10 +26,15 @@ export function validateEnvironment(config: EnvironmentVariables): EnvironmentVa
   }
 
   const dbPort = Number(config.DB_PORT);
+  const redisPort = Number(config.REDIS_PORT);
   const smtpPort = Number(config.SMTP_PORT);
 
   if (Number.isNaN(dbPort) || dbPort <= 0) {
     throw new Error('DB_PORT must be a valid positive number');
+  }
+
+  if (Number.isNaN(redisPort) || redisPort <= 0) {
+    throw new Error('REDIS_PORT must be a valid positive number');
   }
 
   if (Number.isNaN(smtpPort) || smtpPort <= 0) {

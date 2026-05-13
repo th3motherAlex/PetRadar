@@ -5,18 +5,44 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { RedisCacheService } from '../cache/redis-cache.service';
 import { createPoint, getCoordinates } from '../common/utils/geo.util';
+import { trackEvent, trackException } from '../telemetry/application-insights';
 import { CreateLostPetDto } from './dto/create-lost-pet.dto';
 import { LostPet } from './entities/lost-pet.entity';
 
 @Injectable()
 export class LostPetsService {
   private readonly logger = new Logger(LostPetsService.name);
+  private readonly activeLostPetsCacheKey = 'lost-pets:active';
 
   constructor(
     @InjectRepository(LostPet)
     private readonly lostPetsRepository: Repository<LostPet>,
+    private readonly redisCacheService: RedisCacheService,
   ) {}
+
+  async findActive() {
+    const cachedLostPets = await this.redisCacheService.get(
+      this.activeLostPetsCacheKey,
+    );
+
+    if (cachedLostPets) {
+      trackEvent('lost_pets_cache_hit');
+      return cachedLostPets;
+    }
+
+    const lostPets = await this.lostPetsRepository.find({
+      where: { is_active: true },
+      order: { created_at: 'DESC' },
+    });
+    const response = lostPets.map((lostPet) => this.toResponse(lostPet));
+
+    await this.redisCacheService.set(this.activeLostPetsCacheKey, response);
+    trackEvent('lost_pets_cache_miss', { count: String(response.length) });
+
+    return response;
+  }
 
   async create(createLostPetDto: CreateLostPetDto) {
     try {
@@ -41,9 +67,15 @@ export class LostPetsService {
       });
 
       const savedLostPet = await this.lostPetsRepository.save(lostPet);
+      await this.redisCacheService.del(this.activeLostPetsCacheKey);
+      trackEvent('lost_pet_created', {
+        id: String(savedLostPet.id),
+        species: savedLostPet.species,
+      });
 
       return this.toResponse(savedLostPet);
     } catch (error) {
+      trackException(error);
       this.logger.error(
         'Unable to create lost pet record',
         error instanceof Error ? error.stack : undefined,
