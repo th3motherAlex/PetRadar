@@ -1,3 +1,4 @@
+
 {
   "name": "pet-radar",
   "version": "1.0.0",
@@ -8,6 +9,7 @@
     "build": "nest build",
     "start": "node dist/main",
     "start:prod": "node dist/main",
+    "start:render": "npm run migration:run:prod && npm run start:prod",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "lint": "eslint \"src/**/*.ts\" --fix",
