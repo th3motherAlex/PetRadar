@@ -12,16 +12,14 @@ PetRadar es una API REST construida con NestJS para registrar mascotas perdidas 
 - Telemetria: Azure Application Insights
 - Contenedores: Docker y Docker Compose
 - CI/CD: GitHub Actions y GitHub Container Registry
-- Hosting: pendiente de URL final de produccion
+- Hosting: Render
 
 ## URL Publica
 
-Pendiente de reemplazar despues del despliegue:
-
-- API: `https://TU-URL-PUBLICA`
-- Health check: `https://TU-URL-PUBLICA/health`
-- Mascotas perdidas activas: `https://TU-URL-PUBLICA/lost-pets`
-- Mascotas encontradas: `https://TU-URL-PUBLICA/found-pets`
+- API: `https://petradar-api-rzfx.onrender.com`
+- Health check: `https://petradar-api-rzfx.onrender.com/health`
+- Mascotas perdidas activas: `https://petradar-api-rzfx.onrender.com/lost-pets`
+- Mascotas encontradas: `https://petradar-api-rzfx.onrender.com/found-pets`
 
 ## Endpoints
 
@@ -36,7 +34,7 @@ Pendiente de reemplazar despues del despliegue:
 ## Health Check
 
 ```bash
-curl https://TU-URL-PUBLICA/health
+curl https://petradar-api-rzfx.onrender.com/health
 ```
 
 Respuesta esperada:
