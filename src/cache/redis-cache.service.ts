@@ -8,12 +8,27 @@ export class RedisCacheService implements OnModuleDestroy {
   private readonly client: Redis;
 
   constructor(private readonly configService: ConfigService) {
-    this.client = new Redis({
-      host: this.configService.getOrThrow<string>('REDIS_HOST'),
-      port: Number(this.configService.getOrThrow<string>('REDIS_PORT')),
+    const redisUrl = this.configService.get<string>('REDIS_URL');
+    const redisOptions = {
+      password: this.configService.get<string>('REDIS_PASSWORD') || undefined,
+      tls:
+        String(this.configService.get<string>('REDIS_TLS', 'false')).toLowerCase() ===
+        'true'
+          ? {}
+          : undefined,
+      connectTimeout: 1000,
+      enableOfflineQueue: false,
       maxRetriesPerRequest: 1,
       lazyConnect: true,
-    });
+    };
+
+    this.client = redisUrl
+      ? new Redis(redisUrl, redisOptions)
+      : new Redis({
+          ...redisOptions,
+          host: this.configService.getOrThrow<string>('REDIS_HOST'),
+          port: Number(this.configService.getOrThrow<string>('REDIS_PORT')),
+        });
 
     this.client.on('error', (error) => {
       this.logger.warn(`Redis cache unavailable: ${error.message}`);

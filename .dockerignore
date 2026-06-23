@@ -4,6 +4,8 @@ dist
 .github
 .DS_Store
 .env
+.terraform
+terraform/.terraform
 npm-debug.log
 coverage
 terraform

@@ -7,6 +7,7 @@ import { LostPetsModule } from './lost-pets/lost-pets.module';
 import { MailModule } from './mail/mail.module';
 import { buildTypeOrmOptions } from './database/typeorm.config';
 import { RedisCacheModule } from './cache/redis-cache.module';
+import { HealthModule } from './health/health.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { RedisCacheModule } from './cache/redis-cache.module';
     MailModule,
     LostPetsModule,
     FoundPetsModule,
+    HealthModule,
   ],
 })
 export class AppModule {}
